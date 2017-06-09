@@ -13,6 +13,19 @@ var budgetController = (function () {
 		this.id = id;
 		this.description = description;
 		this.value = value;
+		this.percentage = -1;
+	};
+
+	Expense.prototype.calcPercentage = function (totalIncome) {
+		if (totalIncome > 0) {
+			this.percentage = Math.round((this.value / totalIncome) * 100);
+		} else {
+			this.percentage = -1;
+		}
+	};
+
+	Expense.prototype.getPercentange = function () {
+		return this.percentage;
 	};
 
 	var Income = function (id, description, value) {
@@ -97,6 +110,19 @@ var budgetController = (function () {
 				data.percentage = -1;
 			}
 		},
+		calculatePercentages: function () {
+			// Calculate percentage for each expense
+			data.allItems.exp.forEach(function (current) {
+				current.calcPercentage(data.totals.inc);
+			});
+		},
+		getPercentages: function () {
+			// Need to return array containing all expenses so we need to use map method to 
+			var allPercentages = data.allItems.exp.map(function (current) {
+				return current.percentage;
+			});
+			return allPercentages;
+		},
 		getBudget: function () {
 			return {
 				budget: data.budget,
@@ -131,7 +157,50 @@ var uiController = (function () {
 		incomeLabel: '.budget__income--value',
 		expenseLabel: '.budget__expenses--value',
 		percentageLabel: '.budget__expenses--percentage',
-		container: '.container'
+		container: '.container',
+		expensesPercentLabel: '.item__percentage',
+		dateLabel: '.budget__title--month'
+	};
+
+	var formatNumber = function (num, type) {
+		var numSplit, int, dec;
+		/*
+		- or + before the number
+		eactly 2 decimal points
+		comma separating the thoustnads
+		*/
+		// Remove the sign (+/-) of number
+		num = Math.abs(num);
+		// Convert to string and leave 2 decimal places
+		num = num.toFixed(2);
+
+		// Split the number into 2 parts..integer and decimal part
+		numSplit = num.split('.');
+
+		// Store int part in variable int
+		int = numSplit[0];
+
+		// Insert comma in appropriate locationn in integer part of number e.g., 23510
+		if (int.length > 3) {
+			int = int.substr(0, int.length - 3) + ',' + int.substr(int.length - 3);
+		}
+
+		dec = numSplit[1];
+
+		// Alt way to create final formated number using 2 steps vs 1 as below.
+		//		type === 'exp' ? sign = '-' : sign = '+';
+		//		return sign + ' ' + int + '.' + dec;
+
+		// Return formatted number in one statement (alt to 2 statements above)
+		return (type === 'exp' ? '-' : '+') + ' ' + int + '.' + dec;
+
+	};
+
+	// General purpose function to loop through a list of items
+	var nodelistForEach = function (list, callback) {
+		for (var i = 0; i < list.length; i++) {
+			callback(list[i], i);
+		}
 	};
 
 	return {
@@ -150,15 +219,15 @@ var uiController = (function () {
 			// Create HTML string with placeholder text
 			if (type === 'inc') {
 				element = DOMstrings.incomeContainer;
-				html = '<div class="item clearfix" id="inc-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">+ %value%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
+				html = '<div class="item clearfix" id="inc-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">%value%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
 			} else if (type === 'exp') {
 				element = DOMstrings.expenseContainer;
-				html = '<div class="item clearfix" id="exp-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">- %value%</div><div class="item__percentage">21%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
+				html = '<div class="item clearfix" id="exp-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">%value%</div><div class="item__percentage">21%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
 			}
 
 			// Replace the placeholder text with some actual data
 			newHtml = html.replace('%id%', obj.id);
-			newHtml = newHtml.replace('%value%', obj.value);
+			newHtml = newHtml.replace('%value%', formatNumber(obj.value, type));
 			newHtml = newHtml.replace('%description%', obj.description);
 
 			// Insert the HTML into the DOM
@@ -184,14 +253,18 @@ var uiController = (function () {
 			fieldsArr[0].focus();
 		},
 		displayBudget: function (obj) {
-			// Set income total
-			document.querySelector(DOMstrings.incomeLabel).textContent = obj.totalInc;
+			var type;
+
+			obj.budget >= 0 ? type = 'inc' : type = 'exp';
+
+			// Set income total			
+			document.querySelector(DOMstrings.incomeLabel).textContent = formatNumber(obj.totalInc, 'inc');
 
 			// Set expenses total
-			document.querySelector(DOMstrings.expenseLabel).textContent = obj.totalExp;
+			document.querySelector(DOMstrings.expenseLabel).textContent = formatNumber(obj.totalExp, 'exp');
 
 			// Set budget total
-			document.querySelector(DOMstrings.budgetLabel).textContent = obj.budget;
+			document.querySelector(DOMstrings.budgetLabel).textContent = formatNumber(obj.budget, type);
 
 			if (obj.percentage > 0) {
 				// Set expenses percentage
@@ -199,6 +272,41 @@ var uiController = (function () {
 			} else {
 				document.querySelector(DOMstrings.percentageLabel).textContent = '---';
 			}
+		},
+		// Percentages and array with all calculated percentages
+		displayPercentages: function (percentages) {
+			// Fields contains list of all the nodes (locations) where percentages will need to be displayed
+			var fields = document.querySelectorAll(DOMstrings.expensesPercentLabel);
+
+
+
+			nodelistForEach(fields, function (currentElement, index) {
+				// Logic below is the callback function logic
+				if (percentages[index] > 0) {
+					currentElement.textContent = percentages[index] + '%';
+				} else {
+					currentElement.textContent = '---';
+				}
+			});
+		},
+		displayDate: function () {
+			var now, year, month, months;
+			now = new Date();
+			months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+			month = now.getMonth();
+			year = now.getFullYear();
+			document.querySelector(DOMstrings.dateLabel).textContent = months[month] + ' ' + year;
+		},
+		changedType: function () {
+			var fields = document.querySelectorAll(
+				DOMstrings.inputType + ',' +
+				DOMstrings.inputDescription + ',' +
+				DOMstrings.inputValue);
+
+			nodelistForEach(fields, function (currentItem) {
+				currentItem.classList.toggle('red-focus');
+			});
+			document.querySelector(DOMstrings.inputBtn).classList.toggle('red');
 		}
 	};
 
@@ -216,6 +324,7 @@ var uiController = (function () {
 //*********************************************************************
 
 var appController = (function (budgetCtrl, UICtrl) {
+
 	var setupEventListeners = function () {
 
 		var DOM = UICtrl.getDOMstrings();
@@ -223,8 +332,9 @@ var appController = (function (budgetCtrl, UICtrl) {
 		// User presses the button to enter data 
 		document.querySelector(DOM.inputBtn).addEventListener('click', ctrlAddItem);
 
-		// User hits the enter key
+		// User hits the enter key to enter data
 		document.addEventListener('keypress', function (event) {
+			// Note some browser don't support keycode method so we also add in .which method
 			if (event.keyCode === 13 || event.which === 13) {
 				ctrlAddItem();
 			}
@@ -232,17 +342,8 @@ var appController = (function (budgetCtrl, UICtrl) {
 		// Create a event listener on the DOM parent node that contains both Inccome and Expense items
 		document.querySelector(DOM.container).addEventListener('click', ctrlDeleteItem);
 
-	};
+		document.querySelector(DOM.inputType).addEventListener('change', UICtrl.changedType);
 
-	var updateBudget = function () {
-		// 1. Calculate the budget
-		budgetCtrl.calculateBudget();
-		// 2. Return the budget
-		var budget = budgetCtrl.getBudget();
-
-		// 3. Display the budget on the UI
-		UICtrl.displayBudget(budget);
-		console.log(budget);
 	};
 
 	var ctrlAddItem = function () {
@@ -263,6 +364,9 @@ var appController = (function (budgetCtrl, UICtrl) {
 
 			// 5. Calculate and update budget
 			updateBudget();
+
+			// 6. Calculate and update percentages
+			updatePercentages();
 		}
 
 	};
@@ -289,11 +393,37 @@ var appController = (function (budgetCtrl, UICtrl) {
 			// 3. Update and show the new budget
 			updateBudget();
 
+			// 4. Calculate and update percentages
+			updatePercentages();
+
 		}
+	};
+	var updateBudget = function () {
+		// 1. Calculate the budget
+		budgetCtrl.calculateBudget();
+		// 2. Return the budget
+		var budget = budgetCtrl.getBudget();
+
+		// 3. Display the budget on the UI
+		UICtrl.displayBudget(budget);
+		//		console.log(budget);
+	};
+
+	var updatePercentages = function () {
+		// 1. Calculate percentages
+		budgetCtrl.calculatePercentages();
+
+		// 2. Read percentages from the budget controller
+		var percentages = budgetCtrl.getPercentages();
+
+		// 3. Update the UI with the new percentages
+		UICtrl.displayPercentages(percentages);
+		//		console.log(percentages);
 	};
 
 	return {
 		init: function () {
+			UICtrl.displayDate();
 			UICtrl.displayBudget({
 				budget: 0,
 				totalInc: 0,
@@ -337,3 +467,30 @@ appController.init();
 // return el.id 
 // }
 // itemID= findParent(event.target)
+
+// Alternative formatNumber function...handles large numbers
+//formatNumber = function(num,type){
+//            var numSplit,int,dec,len,numOfComa;
+//            num = Math.abs(num);
+//            num = num.toFixed(2);
+//            numSplit = num.split('.');
+//            int = numSplit[0];
+//        
+//            len = int.length;
+//            console.log('len is:'+ len);
+//            if(len > 3){
+//                if (len % 3 === 0){
+//                    numOfComa = Math.floor(len / 3) -1;
+//                }
+//                else{
+//                    numOfComa = Math.floor(len / 3);
+//                }
+//                
+//                for (var i = 1; i <= numOfComa; i++){
+//                    int = int.substr(0, len-(3 * i)) + ',' + int.substr(len - (3 * i));
+//                }
+//            }
+//            dec = numSplit[1];
+//            
+//            return (type === 'exp' ? '-' : '+') + ' ' + int + '.' + dec;
+//        };
