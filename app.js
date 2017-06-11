@@ -42,6 +42,7 @@ var budgetController = (function () {
 		data.totals[type] = sum;
 	};
 
+
 	var data = {
 		allItems: {
 			exp: [],
@@ -78,10 +79,13 @@ var budgetController = (function () {
 			// Return the new element
 			return newItem;
 		},
+
+		// Input is type and id of element you want to delete from the budget
 		deleteItem: function (type, id) {
 			var ids, index;
-			// Use map to return an array (ids) wih all of the IDs of expense/income array
+			// Use map to create an array (ids) of all of the IDs of expense/income array
 			// doing so will allow us to identify the index of expense/income element we want to delete
+
 			// Map produces a new array
 			ids = data.allItems[type].map(function (current) {
 				return current.id;
@@ -90,7 +94,7 @@ var budgetController = (function () {
 			// Get the index of element we want to remove
 			index = ids.indexOf(id);
 
-			// Delete only if the id found in the ids array 
+			// splice allows us to delete the item from the budget data object
 			if (index !== -1) {
 				data.allItems[type].splice(index, 1);
 			}
@@ -130,10 +134,6 @@ var budgetController = (function () {
 				totalExp: data.totals.exp,
 				percentage: data.percentage
 			};
-		},
-
-		testing: function () {
-			console.log(data);
 		}
 	};
 })();
@@ -196,7 +196,7 @@ var uiController = (function () {
 
 	};
 
-	// General purpose function to loop through a list of items
+	// General purpose function to loop through a list of items since there are no built in functions for doing this with lists. 
 	var nodelistForEach = function (list, callback) {
 		for (var i = 0; i < list.length; i++) {
 			callback(list[i], i);
@@ -208,7 +208,7 @@ var uiController = (function () {
 			return {
 				type: document.querySelector(DOMstrings.inputType).value, // Will be either inc or exp
 				description: document.querySelector(DOMstrings.inputDescription).value,
-				value: parseFloat(document.querySelector(DOMstrings.inputValue).value)
+				value: parseFloat(document.querySelector(DOMstrings.inputValue).value) //Convert from string to float
 			};
 		},
 		getDOMstrings: function () {
@@ -230,7 +230,7 @@ var uiController = (function () {
 			newHtml = newHtml.replace('%value%', formatNumber(obj.value, type));
 			newHtml = newHtml.replace('%description%', obj.description);
 
-			// Insert the HTML into the DOM
+			// Insert the HTML into the DOM...for more info see https://developer.mozilla.org/en-US/docs/Web/API/Element/insertAdjacentHTML
 			document.querySelector(element).insertAdjacentHTML('beforeend', newHtml);
 		},
 		deleteListItem: function (selectorID) {
@@ -252,9 +252,11 @@ var uiController = (function () {
 			// Set focus to first fields (descriptio field)
 			fieldsArr[0].focus();
 		},
+		// This will display elements on upper part of UI (totals..income, expenses and budget)
 		displayBudget: function (obj) {
 			var type;
 
+			// Budget value will be formated differently if positive vs Negative. We set type depending on whether budget value is '+' or '-'.  
 			obj.budget >= 0 ? type = 'inc' : type = 'exp';
 
 			// Set income total			
@@ -297,6 +299,8 @@ var uiController = (function () {
 			year = now.getFullYear();
 			document.querySelector(DOMstrings.dateLabel).textContent = months[month] + ' ' + year;
 		},
+
+		// 
 		changedType: function () {
 			var fields = document.querySelectorAll(
 				DOMstrings.inputType + ',' +
@@ -352,11 +356,12 @@ var appController = (function (budgetCtrl, UICtrl) {
 		// 1. Get the input field data
 		input = UICtrl.getInput();
 
+		//Check to make sure item is valid before adding...including using Regex to prevent 'all blanks' inputs (!isEmpty)
 		if (input.description !== "" && !isEmpty(input.description) && !isNaN(input.value) && input.value > 0) {
 			// 2. Add the item to the budget controller
 			newItem = budgetCtrl.addItem(input.type, input.description, input.value);
 
-			// 3. Add the item to the UI
+			// 3. Add the item to the Income or Expense line items 
 			UICtrl.addListItem(newItem, input.type);
 
 			// 4. Clear the fields
@@ -375,9 +380,11 @@ var appController = (function (budgetCtrl, UICtrl) {
 		var itemID, splitID, type, ID;
 
 		// Note this is not a very flexible solution if the HTML changes then you will likely break this code.
-		// at the bottom of the file (commented out) I've attached two more general and robust solutions.
+		// at the bottom of the file (commented out) I've attached two more general and robust solutions. Will replace current
+		// code when I've had a chance to test and confirm it works.
 
 		itemID = event.target.parentNode.parentNode.parentNode.parentNode.id;
+
 		if (itemID) {
 			// 
 			splitID = itemID.split('-');
@@ -401,6 +408,7 @@ var appController = (function (budgetCtrl, UICtrl) {
 	var updateBudget = function () {
 		// 1. Calculate the budget
 		budgetCtrl.calculateBudget();
+
 		// 2. Return the budget
 		var budget = budgetCtrl.getBudget();
 
@@ -422,6 +430,7 @@ var appController = (function (budgetCtrl, UICtrl) {
 	};
 
 	return {
+		// Initialize data objects and set up all event listeners.
 		init: function () {
 			UICtrl.displayDate();
 			UICtrl.displayBudget({
