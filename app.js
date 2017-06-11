@@ -204,6 +204,7 @@ var uiController = (function () {
 	};
 
 	return {
+
 		getInput: function () {
 			return {
 				type: document.querySelector(DOMstrings.inputType).value, // Will be either inc or exp
