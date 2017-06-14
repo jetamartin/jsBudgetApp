@@ -86,7 +86,7 @@ var budgetController = (function () {
 			// Use map to create an array (ids) of all of the IDs of expense/income array
 			// doing so will allow us to identify the index of expense/income element we want to delete
 
-			// Map produces a new array
+			// Create an array containing just the ids of all budget items unit Map method 
 			ids = data.allItems[type].map(function (current) {
 				return current.id;
 			});
@@ -159,7 +159,9 @@ var uiController = (function () {
 		percentageLabel: '.budget__expenses--percentage',
 		container: '.container',
 		expensesPercentLabel: '.item__percentage',
-		dateLabel: '.budget__title--month'
+		dateLabel: '.budget__title--month',
+		expensesTitle: '.expenses__title',
+		incomeTitle: '.income__title'
 	};
 
 	var formatNumber = function (num, type) {
@@ -312,6 +314,11 @@ var uiController = (function () {
 				currentItem.classList.toggle('red-focus');
 			});
 			document.querySelector(DOMstrings.inputBtn).classList.toggle('red');
+
+			// When user changes type of input (inc/exp) title field will be highlighted
+			document.querySelector(DOMstrings.expensesTitle).classList.toggle('active');
+			document.querySelector(DOMstrings.incomeTitle).classList.toggle('active');
+
 		}
 	};
 
@@ -378,13 +385,25 @@ var appController = (function (budgetCtrl, UICtrl) {
 	};
 
 	var ctrlDeleteItem = function (event) {
-		var itemID, splitID, type, ID;
+		var itemID, splitID, type, ID, re;
 
-		// Note this is not a very flexible solution if the HTML changes then you will likely break this code.
-		// at the bottom of the file (commented out) I've attached two more general and robust solutions. Will replace current
-		// code when I've had a chance to test and confirm it works.
+		// Regex for searching for matches inc-xx or exp-xx
+		re = /exp-\d+|inc-\d+/; //matches inc-xx or exp-xx
 
-		itemID = event.target.parentNode.parentNode.parentNode.parentNode.id;
+		function findParent(el) {
+			while (!re.test(el.id)) {
+				el = el.parentNode;
+				if (el === document) {
+					break;
+				}
+			}
+			return el.id;
+		}
+
+		itemID = findParent(event.target);
+
+
+		//		itemID = event.target.parentNode.parentNode.parentNode.parentNode.id;
 
 		if (itemID) {
 			// 
@@ -454,29 +473,7 @@ function isEmpty(str) {
 
 // Main App flow
 appController.init();
-// See https://www.udemy.com/the-complete-javascript-course/learn/v4/questions/2025856
 
-// Jonas's solution 
-//function findParent(el, className) {
-//	while((el = el.parentElement) && !el.classList.contains(className));
-//	return el;
-//}
-//
-//itemDelete = findParent(event.target, 'item__delete');
-//if (itemDelete) itemID = itemDelete.parentNode.parentNode.id;
-
-// Another solution offered by a student on the same thread
-//re= /exp-\d+|inc-\d+/ //matches inc-xx or exp-xx
-// 
-// function findParent(el) {
-// while (!re.test(el.id)){
-// el = el.parentNode
-//     if (el===document){
-//         break
-//     }} 
-// return el.id 
-// }
-// itemID= findParent(event.target)
 
 // Alternative formatNumber function...handles large numbers
 //formatNumber = function(num,type){
